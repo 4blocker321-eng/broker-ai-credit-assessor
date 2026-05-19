@@ -8,10 +8,6 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-import * as pdfjsLib from "pdfjs-dist";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-
 export default function Home() {
   const [fileName, setFileName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,10 +18,22 @@ export default function Home() {
   async function processFile(file) {
     if (!file) return;
 
+    if (file.type !== "application/pdf") {
+      alert("Please upload a PDF file.");
+      return;
+    }
+
     setLoading(true);
     setFileName(file.name);
+    setRawText("");
+    setSummary(null);
 
     try {
+      const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.min.mjs`;
+
       const buffer = await file.arrayBuffer();
 
       const pdf = await pdfjsLib.getDocument({
@@ -36,7 +44,6 @@ export default function Home() {
 
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
-
         const content = await page.getTextContent();
 
         const pageText = content.items
@@ -47,13 +54,10 @@ export default function Home() {
       }
 
       setRawText(text);
-
-      const extracted = analyseIllionText(text);
-
-      setSummary(extracted);
+      setSummary(analyseIllionText(text));
     } catch (err) {
       console.error(err);
-      alert("Failed to read PDF.");
+      alert("Failed to read PDF. This may need OCR if the PDF is image-based.");
     }
 
     setLoading(false);
@@ -61,10 +65,7 @@ export default function Home() {
 
   async function handlePdfUpload(event) {
     const file = event.target.files?.[0];
-
-    if (!file) return;
-
-    processFile(file);
+    await processFile(file);
   }
 
   function moneyMatch(text, label) {
@@ -74,15 +75,12 @@ export default function Home() {
     );
 
     const match = text.match(regex);
-
     return match ? match[1] : "Not found";
   }
 
   function valueMatch(text, label) {
     const regex = new RegExp(`${label}[^0-9]*(\\d+)`, "i");
-
     const match = text.match(regex);
-
     return match ? match[1] : "0";
   }
 
@@ -136,7 +134,6 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="mx-auto max-w-7xl px-6 py-10">
-
         <div className="flex items-center gap-4">
           <BrainCircuit
             className="text-blue-400"
@@ -155,9 +152,7 @@ export default function Home() {
         </div>
 
         <section className="mt-10 grid gap-6 lg:grid-cols-3">
-
           <div className="lg:col-span-2 rounded-3xl border border-slate-800 bg-slate-900 p-8">
-
             <div className="flex items-center gap-3">
               <Upload
                 className="text-blue-400"
@@ -185,14 +180,9 @@ export default function Home() {
               }}
               onDrop={(e) => {
                 e.preventDefault();
-
                 setDragging(false);
 
-                const file =
-                  e.dataTransfer.files?.[0];
-
-                if (!file) return;
-
+                const file = e.dataTransfer.files?.[0];
                 processFile(file);
               }}
               className={`mt-8 flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed py-20 transition ${
@@ -237,7 +227,6 @@ export default function Home() {
           </div>
 
           <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8">
-
             <div className="flex items-center gap-3">
               <BrainCircuit
                 className="text-emerald-400"
@@ -273,18 +262,15 @@ export default function Home() {
               </div>
             </div>
           </div>
-
         </section>
 
         {summary && (
           <section className="mt-8 rounded-3xl border border-slate-800 bg-slate-900 p-8">
-
             <h2 className="text-3xl font-black">
               Extracted Illion Summary
             </h2>
 
             <div className="mt-6 grid gap-4 md:grid-cols-3">
-
               {Object.entries(summary).map(
                 ([key, value]) => (
                   <div
@@ -292,10 +278,7 @@ export default function Home() {
                     className="rounded-2xl border border-slate-800 bg-slate-950 p-5"
                   >
                     <div className="text-sm capitalize text-slate-500">
-                      {key.replace(
-                        /([A-Z])/g,
-                        " $1"
-                      )}
+                      {key.replace(/([A-Z])/g, " $1")}
                     </div>
 
                     <div className="mt-2 break-words text-2xl font-black">
@@ -304,14 +287,12 @@ export default function Home() {
                   </div>
                 )
               )}
-
             </div>
           </section>
         )}
 
         {rawText && (
           <section className="mt-8 rounded-3xl border border-slate-800 bg-slate-900 p-8">
-
             <h2 className="text-2xl font-bold">
               Raw Extract Preview
             </h2>
@@ -319,10 +300,8 @@ export default function Home() {
             <pre className="mt-4 max-h-[600px] overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-950 p-5 text-xs text-slate-300">
               {rawText.slice(0, 12000)}
             </pre>
-
           </section>
         )}
-
       </div>
     </main>
   );
