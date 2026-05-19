@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-import pdf from "pdf-parse/lib/pdf-parse.js";
+import pdf from "pdf-parse";
 
 export async function POST(req) {
   try {
     const formData = await req.formData();
-
     const file = formData.get("file");
 
     if (!file) {
@@ -15,11 +14,9 @@ export async function POST(req) {
     }
 
     const bytes = await file.arrayBuffer();
-
     const buffer = Buffer.from(bytes);
 
     const data = await pdf(buffer);
-
     const text = data.text || "";
 
     function moneyMatch(label) {
@@ -29,18 +26,12 @@ export async function POST(req) {
       );
 
       const match = text.match(regex);
-
       return match ? match[1] : "Not found";
     }
 
     function valueMatch(label) {
-      const regex = new RegExp(
-        `${label}[^0-9]*(\\d+)`,
-        "i"
-      );
-
+      const regex = new RegExp(`${label}[^0-9]*(\\d+)`, "i");
       const match = text.match(regex);
-
       return match ? match[1] : "0";
     }
 
@@ -49,12 +40,8 @@ export async function POST(req) {
       totalDebits: moneyMatch("Total Debits"),
       currentBalance: moneyMatch("Current Balance"),
       dishonours: valueMatch("Number of Dishonours"),
-      gambling: moneyMatch(
-        "Gambling Expenditure - Monthly"
-      ),
-      groceries: moneyMatch(
-        "Groceries - Monthly"
-      ),
+      gambling: moneyMatch("Gambling Expenditure - Monthly"),
+      groceries: moneyMatch("Groceries - Monthly"),
       rent: moneyMatch("Rent - Monthly"),
     };
 
@@ -67,12 +54,8 @@ export async function POST(req) {
     console.error(err);
 
     return NextResponse.json(
-      {
-        error: "Failed to parse PDF",
-      },
-      {
-        status: 500,
-      }
+      { error: "Failed to parse PDF" },
+      { status: 500 }
     );
   }
 }
