@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import pdf from "pdf-parse";
 
 export async function POST(req) {
   try {
@@ -7,24 +6,24 @@ export async function POST(req) {
     const file = formData.get("file");
 
     if (!file) {
-      return NextResponse.json(
-        { error: "No file uploaded" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const data = await pdf(buffer);
-    const text = data.text || "";
+    const pdfParseModule = await import("pdf-parse");
+    const pdf = pdfParseModule.default || pdfParseModule.PDFParse || pdfParseModule;
+
+    const data =
+      typeof pdf === "function"
+        ? await pdf(buffer)
+        : await new pdf({ data: buffer }).getText();
+
+    const text = data.text || data || "";
 
     function moneyMatch(label) {
-      const regex = new RegExp(
-        `${label}[^$-]*(-?\\$?[0-9,]+\\.\\d{2})`,
-        "i"
-      );
-
+      const regex = new RegExp(`${label}[^$-]*(-?\\$?[0-9,]+\\.\\d{2})`, "i");
       const match = text.match(regex);
       return match ? match[1] : "Not found";
     }
