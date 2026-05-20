@@ -1,29 +1,40 @@
 import { NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+
 export async function POST(req) {
   try {
     const formData = await req.formData();
     const file = formData.get("file");
 
     if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No file uploaded" },
+        { status: 400 }
+      );
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const pdfParseModule = await import("pdf-parse");
-    const pdf = pdfParseModule.default || pdfParseModule.PDFParse || pdfParseModule;
+    const { PDFParse } = await import("pdf-parse");
 
-    const data =
-      typeof pdf === "function"
-        ? await pdf(buffer)
-        : await new pdf({ data: buffer }).getText();
+    const parser = new PDFParse({
+      data: buffer,
+    });
 
-    const text = data.text || data || "";
+    const result = await parser.getText();
+
+    await parser.destroy();
+
+    const text = result?.text || "";
 
     function moneyMatch(label) {
-      const regex = new RegExp(`${label}[^$-]*(-?\\$?[0-9,]+\\.\\d{2})`, "i");
+      const regex = new RegExp(
+        `${label}[^$-]*(-?\\$?[0-9,]+\\.\\d{2})`,
+        "i"
+      );
+
       const match = text.match(regex);
       return match ? match[1] : "Not found";
     }
@@ -50,10 +61,13 @@ export async function POST(req) {
       summary,
     });
   } catch (err) {
-    console.error(err);
+    console.error("PDF parse error:", err);
 
     return NextResponse.json(
-      { error: "Failed to parse PDF" },
+      {
+        error: "Failed to parse PDF",
+        details: String(err?.message || err),
+      },
       { status: 500 }
     );
   }
